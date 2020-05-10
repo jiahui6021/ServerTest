@@ -97,7 +97,7 @@ public:
         GET_REQUEST,
         //请求报文语法有误
         BAD_REQUEST,
-
+        //没有资源
         NO_RESOURCE,
         FORBIDDEN_REQUEST,
         FILE_REQUEST,

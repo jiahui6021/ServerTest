@@ -5,7 +5,10 @@
 #include <cstdio>
 #include <exception>
 #include <pthread.h>
+#include <iostream>
 #include "../lock/locker.h"
+
+using namespace std;
 /*
 数据库连接部分尚未完成
 */
@@ -77,6 +80,7 @@ void *threadpool<T>::worker(void *arg){
 }
 template <typename T>
 void threadpool<T>::run(){
+    //cout<<"run"<<endl;
     while(!m_stop){
         m_queuestat.wait();
         m_queuelocker.lock();

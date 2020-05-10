@@ -146,10 +146,23 @@ int main(int argc, char const *argv[]) {
                     cout<<"pool->append"<<endl;
                 }
                 else{
+                    cout<<"server close"<<endl;
                     //服务器关闭连接
+                }
+            }
+            else if(events[i].events & EPOLLOUT){
+                cout<<"main_write"<<endl;
+                if(users[sockfd].write()){
+                    //
+                }
+                else{
+                    //
                 }
             }
         }
     }
+    close(epollfd);
+    close(listenfd);
+    delete[] users;
     return 0;
 }

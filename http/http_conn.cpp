@@ -23,7 +23,7 @@ int http_conn::m_epollfd = -1;
 int http_conn::m_user_count = 0;
 
 //网站路径
-const char *doc_root = "./home/wwwwroot/server";
+const char *doc_root = "./home/wwwroot/server";
 
 ///////////////////////////////////////spoll//////////////////////////////////////////
 
@@ -138,23 +138,29 @@ bool http_conn::read_once(){
         }
         m_read_idx += bytes_read;
     }
+    cout<<"m_read_buf:"<<endl<<m_read_buf<<endl;
     return true;
 }
 
 //线程通过process函数进行处理
 void http_conn::process(){
+    cout<<"process"<<endl;
     HTTP_CODE read_ret = process_read();
     //NO_REQUEST 请求不完整，需要继续接收请求数据
     if(read_ret == NO_REQUEST){
         //注册并继续监听读事件
         modfd(m_epollfd, m_sockfd, EPOLLIN);
+        cout<<"no_request"<<endl;
         return;
     }
+    cout<<read_ret<<" "<<"read end"<<endl;
     //完成报文相应
     bool write_ret = process_write(read_ret);
     if(!write_ret){
         close_conn();
     }
+    cout<<m_write_idx<<" "<< m_write_buf<<endl;
+    cout<<"write end"<<endl;
     //注册并监听写事件
     modfd(m_epollfd, m_sockfd, EPOLLOUT);
 }
@@ -168,8 +174,9 @@ http_conn::HTTP_CODE http_conn::process_read(){
     //parse_line为从状态机具体实现
     while((m_check_state == CHECK_STATE_CONTENT && line_status ==LINE_OK)
     ||((line_status = parse_line()) == LINE_OK)){
+        cout<<line_status<<" "<<m_check_state<<" "<<ret<<endl;
         text = get_line();
-
+        //cout<<"text"<<endl;
         //m_start_line是每一个数据行在m_read_buffer中的开始位置
         //m_checked_inedx表示从状态机在m_read_buffer中读取的位置
         m_start_line = m_checked_idx;
@@ -255,6 +262,7 @@ http_conn::LINE_STATUS http_conn::parse_line(){
 //解析http请求行，获得请求方法，目标url及http版本号
 http_conn::HTTP_CODE http_conn::parse_request_line(char *text){
     //在http报文中，请求行中请求类型，要访问的资源，http版本，其中各个部分之间通过\t或空格分隔
+    //strpbrk 返回两个字符串中首个相同字符的位置
     m_url = strpbrk(text, " \t");
 
     //如果没有空格或\t，则报文格式有误
@@ -280,6 +288,8 @@ http_conn::HTTP_CODE http_conn::parse_request_line(char *text){
     m_version = strpbrk(m_url," \t");
     if(!m_version)
         return BAD_REQUEST;
+    *m_version++ = '\0';
+    m_version += strspn(m_version, " \t");
     //对前7个字符进行判断（资源中带有http://）
     if(strncasecmp(m_url, "http://", 7)==0){
         m_url+=7;
@@ -310,6 +320,7 @@ http_conn::HTTP_CODE http_conn::parse_headers(char *text){
             m_check_state = CHECK_STATE_CONTENT;
             return NO_REQUEST;
         }
+        return GET_REQUEST;
     }
     //解析请求头部连接字段
     else if(strncasecmp(text,"Connection:",11) == 0){
@@ -356,20 +367,20 @@ http_conn::HTTP_CODE http_conn::do_request(){
 
     //找到m_url中/的位置
     const char *p =strrchr(m_url,'/');
+    //cout<<"m_url: "<<m_url<<" "<<p<<endl;
     //登录和注册校验
     if(cgi==1 && (*(p+1) == '2' || *(p+1) == '3')){
         //
     }
     //如果请求资源为/0，表示跳转到注册页面
     if(*(p+1)=='0'){
-        cout<<"http_conn register.html"<<endl;
         char *m_url_real = (char *)malloc(sizeof(char)*200);
         strcpy(m_url_real,"/register.html");
         strncpy(m_real_file + len, m_url_real, strlen(m_url_real));
         free(m_url_real);
     }
     //如果请求资源为/1，表示跳转到登录页面
-    if(*(p+1)=='1'){
+    else if(*(p+1)=='1'){
         char *m_url_real = (char *)malloc(sizeof(char)*200);
         strcpy(m_url_real,"/login.html");
         strncpy(m_real_file + len, m_url_real, strlen(m_url_real));
@@ -377,6 +388,9 @@ http_conn::HTTP_CODE http_conn::do_request(){
     }
     else
         strncpy(m_real_file + len, m_url, FILENAME_LEN - len -1);
+
+    cout<<"http_conn real_file: "<<m_real_file<<endl;
+
     //通过stat获取请求资源文件信息，成功则将信息更新到m_file_stat结构体
     if(stat(m_real_file, &m_file_stat) < 0)
         return NO_RESOURCE;
