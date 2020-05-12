@@ -25,7 +25,7 @@ int http_conn::m_user_count = 0;
 //网站路径
 const char *doc_root = "./home/wwwroot/server";
 
-///////////////////////////////////////spoll//////////////////////////////////////////
+///////////////////////////////////////epoll//////////////////////////////////////////
 
 //设置文件描述符非阻塞
 int setnonblocking(int fd) {
@@ -466,6 +466,7 @@ bool http_conn::add_content(const char* content){
 }
 
 bool http_conn::process_write(HTTP_CODE ret){
+    cout<<"process_write: ret: "<<ret<<endl;
     switch(ret){
         //500
         case INTERNAL_ERROR:{
@@ -476,9 +477,10 @@ bool http_conn::process_write(HTTP_CODE ret){
             break;
         }
         //404
-        case BAD_REQUEST:{
+        case NO_RESOURCE:{
             add_status_line(404, error_404_title);
             add_headers(strlen(error_404_form));
+            cout<<"404"<<endl;
             if(!add_content(error_404_form))
                 return false;
             break;
